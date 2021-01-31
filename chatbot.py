@@ -6,19 +6,21 @@ from nltk.stem import LancasterStemmer
 
 lanstem = LancasterStemmer()
 
-intents = json.loads(open('intents.json').read())
 # this file contains the message data for the chatbot
+intents = json.loads(open('intents.json').read())
 
 classes=[]
 words=[]
 docs=[]
 ignore=[]
 
+# appending all the punctuations in 'ignore'
 import string
 for i in string.punctuation:
     ignore.append(i)
-# appended all the punctuations in 'ignore'
 
+# tokenising the sentences and extending the tokens in 'words'
+# appending 'tag' in 'classes' if it not present
 for intent in intents['intents']:
     for pattern in intent['patterns']:
         w=nltk.word_tokenize(pattern)
@@ -26,44 +28,45 @@ for intent in intents['intents']:
         docs.append([w,intent['tag']])
         if intent['tag'] not in classes:
             classes.append(intent['tag'])
-# tokenised the sentences and extended the tokens in 'words'
-# appended 'tag' in 'classes' if it not present
 
+# stemming all the words of 'words' list and converting it into a set
+# so as to remove duplicate words and then sorting it
 words=[lanstem.stem(w.lower()) for w in words if w not in ignore]
 words=sorted(list(set(words)))
 classes=sorted(list(set(classes)))
-# stemmed all the words of 'words' list and converted it into a set
-# so as to remove duplicate words and sorted it
 
-train=[]
+
+train=[] # training dataset
 out_emp=[0]*len(classes)
 
+
 for doc in docs:
+    # stemming the tokens in 'docs'
+    # creating a bag of words and appending 1 if word in pattern_words
+    # else appending 0
     pattern_words=[lanstem.stem(w.lower()) for w in doc[0]]
     bag=[]
     for word in words:
         bag.append(1) if word in pattern_words else bag.append(0)
-    # stemmed the tokens 'docs'
-    # created a bag and appended 1 if word in pattern_words
-    # else appended 0
-
+   
+    # initiating 1 for current tag in out_row
+    # appending both bag and out_row to 'train'
+    # to create the training data
     out_row=list(out_emp)
     out_row[classes.index(doc[1])]=1
     train.append([bag,out_row])
-    # initiated 1 for current tag in out_row
-    # appended both bag and out_row to 'train'
-    # to create the training data
+    
 
 
 import random
-random.shuffle(train) # randomised the arrangements of values in 'train'
-train=np.array(train,dtype='object')
-x_train=list(train[:,0])
-y_train=list(train[:,1])
-# splitted the training data
-# x_train -> stemmed tokens
-# y_train -> tags
+random.shuffle(train) # randomising the arrangements of values in 'train'
 
+# splitted the training data
+train=np.array(train,dtype='object')
+x_train=list(train[:,0]) # stemmed tokens
+y_train=list(train[:,1]) # tags
+
+# creating a sequential model
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense,Dropout
 model=Sequential()
@@ -72,17 +75,18 @@ model.add(Dropout(0.3))
 model.add(Dense(64,activation='relu'))
 model.add(Dropout(0.3))
 model.add(Dense(len(y_train[0]),activation='softmax'))
-# created a sequential model
+
 
 model.compile(loss='categorical_crossentropy',
               optimizer='adam',metrics=['accuracy'])
 model.fit(np.array(x_train),np.array(y_train),epochs=200,batch_size=10)
 # note -  the splitted data is converted into an array before fitting them
 
+# # illustrating the 'loss' and 'accuracy' curve
 # import pandas as pd
 # import matplotlib.pyplot as plt
 # pd.DataFrame(model.history.history).plot()
-# # analysed the 'loss' and 'accuracy' curve
+
 
 def stemming(sent):
     """
@@ -166,6 +170,8 @@ def message(msg):
 for i in range(5):
     print('.')
 print()
+
+# interacting with the chatbot
 while True:
     your_text=input('you : ')
     print()
